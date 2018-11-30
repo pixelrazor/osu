@@ -81,7 +81,7 @@ const (
 // Language represents the language of a Beatmap
 type Language int
 
-// All langauges
+// All languages
 const (
 	AnyLanguage Language = iota
 	OtherLangauge
