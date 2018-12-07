@@ -425,7 +425,7 @@ func (rc *ReplayContent) UnmarshalJSON(data []byte) error {
 		if w < 0 {
 			continue
 		}
-		out = append(out, &ReplayPoint{time.Duration(w), x, y, z})
+		out = append(out, &ReplayPoint{time.Duration(w) * time.Millisecond, x, y, z})
 	}
 	*rc = out
 	return nil
