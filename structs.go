@@ -3,9 +3,11 @@ package osu
 import (
 	"bytes"
 	"encoding/base64"
+	"errors"
 	"fmt"
 	"io/ioutil"
 	"net/http"
+	"regexp"
 	"strings"
 	"time"
 
@@ -386,8 +388,8 @@ type ReplayPoint struct {
 // ReplayContent just wraps []*ReplayPoint so it can implement json's Unmarhsaler interface
 type ReplayContent []*ReplayPoint
 
-// ReplayData holds a list of points that represent the different states in a replay
-type ReplayData struct {
+// Replay holds a list of points that represent the different states in a replay
+type Replay struct {
 	Content ReplayContent `json:"content,string"`
 }
 
@@ -458,6 +460,13 @@ func NewClient(key string) *Client {
 	client := new(Client)
 	client.key = key
 	return client
+}
+func errorCheck(data []byte) error {
+	regex := regexp.MustCompile(`"error"[[:space:]]*:[[:space:]]*"(.*)"`)
+	if regex.Match(data) {
+		return errors.New(string(regex.ExpandString(nil, "$1", string(data), regex.FindSubmatchIndex(data))))
+	}
+	return nil
 }
 
 const apiURL = "https://osu.ppy.sh/api/"

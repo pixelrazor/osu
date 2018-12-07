@@ -89,6 +89,10 @@ func (client *Client) Beatmaps(opts ...BeatmapOption) ([]*Beatmap, error) {
 	if err != nil {
 		return nil, errors.New("osu.Client.Beatmaps: " + err.Error())
 	}
+	err = errorCheck(body)
+	if err != nil {
+		return nil, errors.New("osu.Client.Beatmaps: " + err.Error())
+	}
 	var regx = regexp.MustCompile(`(date"[[:space:]]*:[[:space:]]*"[0-9]{4}-[0-9]{2}-[0-9]{2}) ([0-9]{2}:[0-9]{2}:[0-9]{2})"`)
 	body = regx.ReplaceAll(body, []byte(`${1}T${2}-00:00"`))
 	maps := make([]*Beatmap, 0)
@@ -132,7 +136,11 @@ func (client *Client) User(ID string, IDType usernameType, opts ...UserOption) (
 	}
 	body, err := ioutil.ReadAll(resp.Body)
 	if err != nil {
-		return nil, errors.New("osu.Client.Beatmaps: " + err.Error())
+		return nil, errors.New("osu.Client.User: " + err.Error())
+	}
+	err = errorCheck(body)
+	if err != nil {
+		return nil, errors.New("osu.Client.User: " + err.Error())
 	}
 	var regx = regexp.MustCompile(`(date"[[:space:]]*:[[:space:]]*"[0-9]{4}-[0-9]{2}-[0-9]{2}) ([0-9]{2}:[0-9]{2}:[0-9]{2})"`)
 	body = regx.ReplaceAll(body, []byte(`${1}T${2}-00:00"`))
@@ -200,6 +208,10 @@ func (client *Client) Scores(ID string, opts ...ScoresOption) ([]*Score, error) 
 	if err != nil {
 		return nil, errors.New("osu.Client.Scores: " + err.Error())
 	}
+	err = errorCheck(body)
+	if err != nil {
+		return nil, errors.New("osu.Client.Scores: " + err.Error())
+	}
 	var regx = regexp.MustCompile(`(date"[[:space:]]*:[[:space:]]*"[0-9]{4}-[0-9]{2}-[0-9]{2}) ([0-9]{2}:[0-9]{2}:[0-9]{2})"`)
 	body = regx.ReplaceAll(body, []byte(`${1}T${2}-00:00"`))
 	scores := make([]*Score, 0)
@@ -235,15 +247,19 @@ func (client *Client) UserBest(ID string, IDType usernameType, opts ...UserBestO
 	}
 	resp, err := client.c.Get(query)
 	if err != nil {
-		return nil, errors.New("osu.Client.User: " + err.Error())
+		return nil, errors.New("osu.Client.UserBest: " + err.Error())
 	}
 	defer resp.Body.Close()
 	if resp.StatusCode != 200 {
-		return nil, errors.New("osu.Client.User: " + resp.Status)
+		return nil, errors.New("osu.Client.UserBest: " + resp.Status)
 	}
 	body, err := ioutil.ReadAll(resp.Body)
 	if err != nil {
-		return nil, errors.New("osu.Client.Beatmaps: " + err.Error())
+		return nil, errors.New("osu.Client.UserBest: " + err.Error())
+	}
+	err = errorCheck(body)
+	if err != nil {
+		return nil, errors.New("osu.Client.UserBest: " + err.Error())
 	}
 	var regx = regexp.MustCompile(`(date"[[:space:]]*:[[:space:]]*"[0-9]{4}-[0-9]{2}-[0-9]{2}) ([0-9]{2}:[0-9]{2}:[0-9]{2})"`)
 	body = regx.ReplaceAll(body, []byte(`${1}T${2}-00:00"`))
@@ -280,15 +296,19 @@ func (client *Client) UserRecent(ID string, IDType usernameType, opts ...UserRec
 	}
 	resp, err := client.c.Get(query)
 	if err != nil {
-		return nil, errors.New("osu.Client.User: " + err.Error())
+		return nil, errors.New("osu.Client.UserRecent: " + err.Error())
 	}
 	defer resp.Body.Close()
 	if resp.StatusCode != 200 {
-		return nil, errors.New("osu.Client.User: " + resp.Status)
+		return nil, errors.New("osu.Client.UserRecent: " + resp.Status)
 	}
 	body, err := ioutil.ReadAll(resp.Body)
 	if err != nil {
-		return nil, errors.New("osu.Client.Beatmaps: " + err.Error())
+		return nil, errors.New("osu.Client.UserRecent: " + err.Error())
+	}
+	err = errorCheck(body)
+	if err != nil {
+		return nil, errors.New("osu.Client.UserRecent: " + err.Error())
 	}
 	var regx = regexp.MustCompile(`(date"[[:space:]]*:[[:space:]]*"[0-9]{4}-[0-9]{2}-[0-9]{2}) ([0-9]{2}:[0-9]{2}:[0-9]{2})"`)
 	body = regx.ReplaceAll(body, []byte(`${1}T${2}-00:00"`))
@@ -309,8 +329,8 @@ func ReplayWithMods(mods ...Mod) ReplayOption {
 }
 
 // Replay returns the data for the given beatmap, played by the specified user in the specified mode
-func (client *Client) Replay(mode mode, beatmapID string, userID string, opts ...ReplayOption) (*ReplayData, error) {
-	query := apiURL + "get_user_recent?k=" + client.key
+func (client *Client) Replay(mode mode, beatmapID string, userID string, opts ...ReplayOption) (*Replay, error) {
+	query := apiURL + "get_replay?k=" + client.key
 	query = BeatmapsWithMode(mode)(query)
 	query = BeatmapsWithID(beatmapID)(query)
 	query += "&u=" + userID
@@ -319,19 +339,52 @@ func (client *Client) Replay(mode mode, beatmapID string, userID string, opts ..
 	}
 	resp, err := client.c.Get(query)
 	if err != nil {
-		return nil, errors.New("osu.Client.User: " + err.Error())
+		return nil, errors.New("osu.Client.Replay: " + err.Error())
 	}
 	defer resp.Body.Close()
 	if resp.StatusCode != 200 {
-		return nil, errors.New("osu.Client.User: " + resp.Status)
+		return nil, errors.New("osu.Client.Replay: " + resp.Status)
 	}
 	body, err := ioutil.ReadAll(resp.Body)
 	if err != nil {
-		return nil, errors.New("osu.Client.Beatmaps: " + err.Error())
+		return nil, errors.New("osu.Client.Replay: " + err.Error())
+	}
+	err = errorCheck(body)
+	if err != nil {
+		return nil, errors.New("osu.Client.Replay: " + err.Error())
 	}
 	var regx = regexp.MustCompile(`(date"[[:space:]]*:[[:space:]]*"[0-9]{4}-[0-9]{2}-[0-9]{2}) ([0-9]{2}:[0-9]{2}:[0-9]{2})"`)
 	body = regx.ReplaceAll(body, []byte(`${1}T${2}-00:00"`))
-	var replay ReplayData
+	var replay Replay
 	err = json.Unmarshal(body, &replay)
 	return &replay, err
+}
+
+// Match fetches a multiplayer match with the given ID
+func (client *Client) Match(matchID string) (*Match, error) {
+	query := apiURL + "get_match?k=" + client.key + "&mp=" + matchID
+	resp, err := client.c.Get(query)
+	if err != nil {
+		return nil, errors.New("osu.Client.Match: " + err.Error())
+	}
+	defer resp.Body.Close()
+	if resp.StatusCode != 200 {
+		return nil, errors.New("osu.Client.Match: " + resp.Status)
+	}
+	body, err := ioutil.ReadAll(resp.Body)
+	if err != nil {
+		return nil, errors.New("osu.Client.Match: " + err.Error())
+	}
+	err = errorCheck(body)
+	if err != nil {
+		return nil, errors.New("osu.Client.Match: " + err.Error())
+	}
+	var regx = regexp.MustCompile(`(time"[[:space:]]*:[[:space:]]*"[0-9]{4}-[0-9]{2}-[0-9]{2}) ([0-9]{2}:[0-9]{2}:[0-9]{2})"`)
+	body = regx.ReplaceAll(body, []byte(`${1}T${2}-00:00"`))
+	match := make([]*Match, 0)
+	err = json.Unmarshal(body, &match)
+	if len(match) == 1 {
+		return match[0], err
+	}
+	return nil, err
 }
