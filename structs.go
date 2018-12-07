@@ -1,12 +1,19 @@
 package osu
 
 import (
+	"bytes"
+	"encoding/base64"
+	"fmt"
+	"io/ioutil"
 	"net/http"
+	"strings"
 	"time"
+
+	"github.com/ulikunitz/xz/lzma"
 )
 
 // Mod is used to represent which modifiers are applied to beatmaps
-type Mod int
+type Mod int64
 
 // All mods
 const (
@@ -135,7 +142,7 @@ func (mods Mods) String() string {
 
 // List returns a slice containing the individual mods contained by a field
 func (mods Mods) List() []Mod {
-	num := int(mods)
+	num := int64(mods)
 	list := make([]Mod, 0)
 	i := uint(0)
 	for num != 0 {
@@ -148,79 +155,47 @@ func (mods Mods) List() []Mod {
 	return list
 }
 
-// Possible values of Beatmap.Approved
-const (
-	Loved     = 4
-	Qualified = 3
-	Approved  = 2
-	Ranked    = 1
-	Pending   = 0
-	WIP       = -1
-	Graveyard = -2
-)
+type status int
 
-// UsernameType represents the two different ways a user can be represented in a query
-type UsernameType string
+// Status holds possible values of Beatmap.Approved
+var Status = struct {
+	Loved, Qualified, Approved, Ranked, Pending, WIP, Graveyard status
+}{4, 3, 2, 1, 0, -1, -2}
 
-// All username types
-const (
-	// UserID is for referring to the ID number of a user
-	UserID UsernameType = "int"
-	// Username is for referring to the name of a user
-	Username UsernameType = "string"
-)
+type usernameType string
 
-// Mode represents the game mode for a Beatmap
-type Mode int
+// UsernameType holds the two different ways a user can be represented in a query
+var UsernameType = struct {
+	// ID is for referring to the ID number of a user
+	ID usernameType
+	// Name is for referring to the name of a user
+	Name usernameType
+}{"int", "string"}
 
-// All modes
-const (
-	Osu Mode = iota
-	Taiko
-	Ctb
-	Mania
-)
+type mode int
 
-// Language represents the language of a Beatmap
-type Language int
+// Mode holds all possible game modes
+var Mode = struct {
+	Osu, Taiko, Ctb, Mania mode
+}{0, 1, 2, 3}
 
-// All languages
-const (
-	AnyLanguage Language = iota
-	OtherLangauge
-	English
-	Japanese
-	Chinese
-	Instrumental
-	Korean
-	French
-	German
-	Swedish
-	Spanish
-	Italian
-)
+type language int
 
-// Genre represents the genre of a Beatmap
-type Genre int
+// Language holds all languages of a Beatmap
+var Language = struct {
+	Any, Other, English, Japanese, Chinese, Instrumental, Korean, French, German, Swedish, Spanish, Italian language
+}{0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11}
 
-// All genres
-const (
-	AnyGenre Genre = iota
-	UnspecifiedGenre
-	VideoGame
-	Anime
-	Rock
-	Pop
-	OtherGenre
-	Novelty
-	_
-	HipHop
-	Electronic
-)
+type genre int
+
+// Genre holds the genres of Beatmaps
+var Genre = struct {
+	Any, Unspecified, VideoGame, Anime, Rock, Pop, OtherGenre, Novelty, HipHop, Electronic genre
+}{0, 1, 2, 3, 4, 5, 6, 7, 9, 10}
 
 // Beatmap contains all data relating to an individual beatmap
 type Beatmap struct {
-	Approved         int       `json:"approved,string"`
+	Approved         status    `json:"approved,string"`
 	ApprovedDate     time.Time `json:"approved_date,string"`
 	LastUpdate       time.Time `json:"last_update,string"`
 	Artist           string    `json:"artist"`
@@ -236,13 +211,13 @@ type Beatmap struct {
 	DiffDrain        float64   `json:"diff_drain,string"`
 	HitLength        int       `json:"hit_length,string"`
 	Source           string    `json:"source"`
-	GenreID          Genre     `json:"genre_id,string"`
-	LanguageID       Language  `json:"language_id,string"`
+	GenreID          genre     `json:"genre_id,string"`
+	LanguageID       language  `json:"language_id,string"`
 	Title            string    `json:"title"`
 	TotalLength      int       `json:"total_length,string"`
 	Version          string    `json:"version"`
 	FileMd5          string    `json:"file_md5"`
-	Mode             Mode      `json:"mode,string"`
+	Mode             mode      `json:"mode,string"`
 	Tags             string    `json:"tags"`
 	FavouriteCount   int64     `json:"favourite_count,string"`
 	Playcount        int64     `json:"playcount,string"`
@@ -306,6 +281,154 @@ type Score struct {
 	ReplayAvailable string    `json:"replay_available"`
 }
 
+// BestScore holds the information on the top scores for a user
+type BestScore struct {
+	BeatmapID   string    `json:"beatmap_id"`
+	Score       int64     `json:"score,string"`
+	Maxcombo    int64     `json:"maxcombo,string"`
+	Count300    int64     `json:"count300,string"`
+	Count100    int64     `json:"count100,string"`
+	Count50     int64     `json:"count50,string"`
+	Countmiss   int64     `json:"countmiss,string"`
+	Countkatu   int64     `json:"countkatu,string"`
+	Countgeki   int64     `json:"countgeki,string"`
+	Perfect     string    `json:"perfect"`
+	EnabledMods Mods      `json:"enabled_mods,string"`
+	UserID      string    `json:"user_id"`
+	Date        time.Time `json:"date,string"`
+	Rank        string    `json:"rank"`
+	Pp          float64   `json:"pp,string"`
+}
+
+// RecentScore holds the information on the top scores for a user
+type RecentScore struct {
+	BeatmapID   string    `json:"beatmap_id"`
+	Score       int64     `json:"score,string"`
+	Maxcombo    int64     `json:"maxcombo,string"`
+	Count300    int64     `json:"count300,string"`
+	Count100    int64     `json:"count100,string"`
+	Count50     int64     `json:"count50,string"`
+	Countmiss   int64     `json:"countmiss,string"`
+	Countkatu   int64     `json:"countkatu,string"`
+	Countgeki   int64     `json:"countgeki,string"`
+	Perfect     string    `json:"perfect"`
+	EnabledMods Mods      `json:"enabled_mods,string"`
+	UserID      string    `json:"user_id"`
+	Date        time.Time `json:"date,string"`
+	Rank        string    `json:"rank"`
+}
+
+// Match contains the information for a multiplayer match
+type Match struct {
+	Match MatchInfo    `json:"match"`
+	Games []*MatchGame `json:"games"`
+}
+
+// MatchInfo contains information about the multiplayer room
+type MatchInfo struct {
+	MatchID   string     `json:"match_id"`
+	Name      string     `json:"name"`
+	StartTime time.Time  `json:"start_time"`
+	EndTime   *time.Time `json:"end_time"`
+}
+
+// ScoringType represents the scoring method in a multiplayer match
+var ScoringType = struct {
+	Score, Accuracy, Combo, ScoreV2 scoringType
+}{0, 1, 2, 3}
+
+type scoringType int
+
+//MatchGame contains information about beatmaps that have been played in a multiplayer match
+type MatchGame struct {
+	GameID      string        `json:"game_id"`
+	StartTime   time.Time     `json:"start_time"`
+	EndTime     time.Time     `json:"end_time"`
+	BeatmapID   string        `json:"beatmap_id"`
+	PlayMode    mode          `json:"play_mode"`
+	MatchType   int64         `json:"match_type"`
+	ScoringType scoringType   `json:"scoring_type"`
+	TeamType    string        `json:"team_type"`
+	Mods        Mods          `json:"mods"`
+	Scores      []*MatchScore `json:"scores"`
+}
+
+// MatchScore contains the information about the score of an individual user in a multiplayer match
+type MatchScore struct {
+	Slot      string `json:"slot"`
+	Team      string `json:"team"`
+	UserID    string `json:"user_id"`
+	Score     string `json:"score"`
+	Maxcombo  string `json:"maxcombo"`
+	Rank      string `json:"rank"`
+	Count50   string `json:"count50"`
+	Count100  string `json:"count100"`
+	Count300  string `json:"count300"`
+	Countmiss string `json:"countmiss"`
+	Countgeki string `json:"countgeki"`
+	Countkatu string `json:"countkatu"`
+	Perfect   string `json:"perfect"`
+	Pass      string `json:"pass"`
+}
+
+// ReplayPoint holds a piece of replay data
+type ReplayPoint struct {
+	// Time since the last action
+	TimeSinceLast time.Duration
+	// x-coordinate of the cursor from 0 - 512
+	X float64
+	// y-coordinate of the cursor from 0 - 384
+	Y float64
+	// Bitwise combination of keys/mouse buttons pressed
+	Keys int
+}
+
+// ReplayContent just wraps []*ReplayPoint so it can implement json's Unmarhsaler interface
+type ReplayContent []*ReplayPoint
+
+// ReplayData holds a list of points that represent the different states in a replay
+type ReplayData struct {
+	Content ReplayContent `json:"content,string"`
+}
+
+// UnmarshalJSON satisfies the Unmarshaler interface
+func (rc *ReplayContent) UnmarshalJSON(data []byte) error {
+	str := string(data)
+	str = strings.Replace(str, `"`, "", -1)
+	str = strings.Replace(str, `\`, "", -1)
+	data, err := base64.StdEncoding.DecodeString(str)
+	if err != nil {
+		return err
+	}
+	reader, err := lzma.NewReader(bytes.NewBuffer(data))
+	if err != nil {
+		return err
+	}
+	outRaw, err := ioutil.ReadAll(reader)
+	if err != nil {
+		return err
+	}
+	groups := strings.Split(string(outRaw), ",")
+	out := make([]*ReplayPoint, 0)
+	for i := range groups {
+		var (
+			w    int64
+			x, y float64
+			z    int
+		)
+		if strings.Count(groups[i], "|") != 3 {
+			continue
+		}
+		fmt.Sscanf(groups[i], "%v|%v|%v|%v", &w, &x, &y, &z)
+		if w < 0 {
+			continue
+		}
+		out = append(out, &ReplayPoint{time.Duration(w), x, y, z})
+	}
+	*rc = out
+	return nil
+}
+
 // BeatmapOption is used to add optional queries to Client.Beatmaps
 type BeatmapOption func(string) string
 
@@ -314,6 +437,15 @@ type UserOption func(string) string
 
 // ScoresOption is used to add optional queries to Client.Scores
 type ScoresOption func(string) string
+
+// UserBestOption is used to add optional queries to Client.UserBest
+type UserBestOption func(string) string
+
+// UserRecentOption is used to add optional queries to Client.UserRecent
+type UserRecentOption func(string) string
+
+// ReplayOption is used to add optional queries to Client.Replay
+type ReplayOption func(string) string
 
 // Client executes requests to the endpoints
 type Client struct {

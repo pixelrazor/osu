@@ -30,7 +30,7 @@ func BeatmapsLimit(limit int) BeatmapOption {
 }
 
 // BeatmapsWithMode specifies which mode to confine results to
-func BeatmapsWithMode(mode Mode) BeatmapOption {
+func BeatmapsWithMode(mode mode) BeatmapOption {
 	return func(s string) string {
 		return s + fmt.Sprintf("&m=%d", mode)
 	}
@@ -58,7 +58,7 @@ func BeatmapsWithSetID(ID string) BeatmapOption {
 }
 
 // BeatmapsByCreator confines the search to beatmaps created by a specific user
-func BeatmapsByCreator(ID string, IDType UsernameType) BeatmapOption {
+func BeatmapsByCreator(ID string, IDType usernameType) BeatmapOption {
 	return func(s string) string {
 		return s + fmt.Sprintf("&u=%v&type=%v", url.QueryEscape(ID), url.QueryEscape(string(IDType)))
 	}
@@ -97,7 +97,7 @@ func (client *Client) Beatmaps(opts ...BeatmapOption) ([]*Beatmap, error) {
 }
 
 // UserMode specifies which mode to show info for in the User struct (default is Osu)
-func UserMode(mode Mode) UserOption {
+func UserMode(mode mode) UserOption {
 	return func(s string) string {
 		return s + fmt.Sprintf("&m=%d", mode)
 	}
@@ -116,7 +116,7 @@ func UserEventsSince(days int) UserOption {
 }
 
 // User fetches information for a specific user
-func (client *Client) User(ID string, IDType UsernameType, opts ...UserOption) (*User, error) {
+func (client *Client) User(ID string, IDType usernameType, opts ...UserOption) (*User, error) {
 	query := apiURL + "get_user?k=" + client.key
 	query = BeatmapsByCreator(ID, IDType)(query)
 	for _, opt := range opts {
@@ -145,14 +145,14 @@ func (client *Client) User(ID string, IDType UsernameType, opts ...UserOption) (
 }
 
 // ScoresWithMode confines results to those with the specified mode
-func ScoresWithMode(m Mode) ScoresOption {
+func ScoresWithMode(m mode) ScoresOption {
 	return func(s string) string {
 		return s + fmt.Sprintf("&m=%d", m)
 	}
 }
 
 // ScoresByUser confines results to just scores from the specific user
-func ScoresByUser(ID string, IDType UsernameType) ScoresOption {
+func ScoresByUser(ID string, IDType usernameType) ScoresOption {
 	return func(s string) string {
 		return s + fmt.Sprintf("&u=%v&type=%v", url.QueryEscape(ID), url.QueryEscape(string(IDType)))
 	}
@@ -205,4 +205,133 @@ func (client *Client) Scores(ID string, opts ...ScoresOption) ([]*Score, error) 
 	scores := make([]*Score, 0)
 	err = json.Unmarshal(body, &scores)
 	return scores, err
+}
+
+// UserBestLimit specifies how many beatmaps to return (default 10, max 100)
+func UserBestLimit(limit int) UserBestOption {
+	if limit < 1 {
+		limit = 1
+	} else if limit > 100 {
+		limit = 100
+	}
+	return func(s string) string {
+		return s + fmt.Sprintf("&limit=%d", limit)
+	}
+}
+
+// UserBestWithMode confines results to those with the specified mode
+func UserBestWithMode(m mode) UserBestOption {
+	return func(s string) string {
+		return s + fmt.Sprintf("&m=%d", m)
+	}
+}
+
+// UserBest returns a list of the top scores for the specified user
+func (client *Client) UserBest(ID string, IDType usernameType, opts ...UserBestOption) ([]*BestScore, error) {
+	query := apiURL + "get_user_best?k=" + client.key
+	query = BeatmapsByCreator(ID, IDType)(query)
+	for _, opt := range opts {
+		query = opt(query)
+	}
+	resp, err := client.c.Get(query)
+	if err != nil {
+		return nil, errors.New("osu.Client.User: " + err.Error())
+	}
+	defer resp.Body.Close()
+	if resp.StatusCode != 200 {
+		return nil, errors.New("osu.Client.User: " + resp.Status)
+	}
+	body, err := ioutil.ReadAll(resp.Body)
+	if err != nil {
+		return nil, errors.New("osu.Client.Beatmaps: " + err.Error())
+	}
+	var regx = regexp.MustCompile(`(date"[[:space:]]*:[[:space:]]*"[0-9]{4}-[0-9]{2}-[0-9]{2}) ([0-9]{2}:[0-9]{2}:[0-9]{2})"`)
+	body = regx.ReplaceAll(body, []byte(`${1}T${2}-00:00"`))
+	scores := make([]*BestScore, 0)
+	err = json.Unmarshal(body, &scores)
+	return scores, err
+}
+
+// UserRecentLimit specifies how many beatmaps to return (default 10, max 50)
+func UserRecentLimit(limit int) UserRecentOption {
+	if limit < 1 {
+		limit = 1
+	} else if limit > 50 {
+		limit = 100
+	}
+	return func(s string) string {
+		return s + fmt.Sprintf("&limit=%d", limit)
+	}
+}
+
+// UserRecentWithMode confines results to those with the specified mode
+func UserRecentWithMode(m mode) UserRecentOption {
+	return func(s string) string {
+		return s + fmt.Sprintf("&m=%d", m)
+	}
+}
+
+// UserRecent returns a list of the top scores for the specified user
+func (client *Client) UserRecent(ID string, IDType usernameType, opts ...UserRecentOption) ([]*RecentScore, error) {
+	query := apiURL + "get_user_recent?k=" + client.key
+	query = BeatmapsByCreator(ID, IDType)(query)
+	for _, opt := range opts {
+		query = opt(query)
+	}
+	resp, err := client.c.Get(query)
+	if err != nil {
+		return nil, errors.New("osu.Client.User: " + err.Error())
+	}
+	defer resp.Body.Close()
+	if resp.StatusCode != 200 {
+		return nil, errors.New("osu.Client.User: " + resp.Status)
+	}
+	body, err := ioutil.ReadAll(resp.Body)
+	if err != nil {
+		return nil, errors.New("osu.Client.Beatmaps: " + err.Error())
+	}
+	var regx = regexp.MustCompile(`(date"[[:space:]]*:[[:space:]]*"[0-9]{4}-[0-9]{2}-[0-9]{2}) ([0-9]{2}:[0-9]{2}:[0-9]{2})"`)
+	body = regx.ReplaceAll(body, []byte(`${1}T${2}-00:00"`))
+	scores := make([]*RecentScore, 0)
+	err = json.Unmarshal(body, &scores)
+	return scores, err
+}
+
+// ReplayWithMods confines the result to a replay with the given mods
+func ReplayWithMods(mods ...Mod) ReplayOption {
+	m := 0
+	for _, v := range mods {
+		m |= int(v)
+	}
+	return func(s string) string {
+		return s + fmt.Sprintf("&mods=%d", m)
+	}
+}
+
+// Replay returns the data for the given beatmap, played by the specified user in the specified mode
+func (client *Client) Replay(mode mode, beatmapID string, userID string, opts ...ReplayOption) (*ReplayData, error) {
+	query := apiURL + "get_user_recent?k=" + client.key
+	query = BeatmapsWithMode(mode)(query)
+	query = BeatmapsWithID(beatmapID)(query)
+	query += "&u=" + userID
+	for _, opt := range opts {
+		query = opt(query)
+	}
+	resp, err := client.c.Get(query)
+	if err != nil {
+		return nil, errors.New("osu.Client.User: " + err.Error())
+	}
+	defer resp.Body.Close()
+	if resp.StatusCode != 200 {
+		return nil, errors.New("osu.Client.User: " + resp.Status)
+	}
+	body, err := ioutil.ReadAll(resp.Body)
+	if err != nil {
+		return nil, errors.New("osu.Client.Beatmaps: " + err.Error())
+	}
+	var regx = regexp.MustCompile(`(date"[[:space:]]*:[[:space:]]*"[0-9]{4}-[0-9]{2}-[0-9]{2}) ([0-9]{2}:[0-9]{2}:[0-9]{2})"`)
+	body = regx.ReplaceAll(body, []byte(`${1}T${2}-00:00"`))
+	var replay ReplayData
+	err = json.Unmarshal(body, &replay)
+	return &replay, err
 }
