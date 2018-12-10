@@ -382,9 +382,13 @@ func (client *Client) Match(matchID string) (*Match, error) {
 	var regx = regexp.MustCompile(`(time"[[:space:]]*:[[:space:]]*"[0-9]{4}-[0-9]{2}-[0-9]{2}) ([0-9]{2}:[0-9]{2}:[0-9]{2})"`)
 	body = regx.ReplaceAll(body, []byte(`${1}T${2}-00:00"`))
 	match := make([]*Match, 0)
+	fmt.Println(string(body))
 	err = json.Unmarshal(body, &match)
+	if err != nil {
+		return nil, errors.New("osu.Client.Match: No matches found")
+	}
 	if len(match) == 1 {
 		return match[0], err
 	}
-	return nil, err
+	return nil, errors.New("osu.Client.Match: No matches found")
 }

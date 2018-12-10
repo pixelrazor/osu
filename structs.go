@@ -330,8 +330,8 @@ type Match struct {
 type MatchInfo struct {
 	MatchID   string     `json:"match_id"`
 	Name      string     `json:"name"`
-	StartTime time.Time  `json:"start_time"`
-	EndTime   *time.Time `json:"end_time"`
+	StartTime time.Time  `json:"start_time,string"`
+	EndTime   *time.Time `json:"end_time,string"`
 }
 
 // ScoringType represents the scoring method in a multiplayer match
@@ -344,31 +344,31 @@ type scoringType int
 //MatchGame contains information about beatmaps that have been played in a multiplayer match
 type MatchGame struct {
 	GameID      string        `json:"game_id"`
-	StartTime   time.Time     `json:"start_time"`
-	EndTime     time.Time     `json:"end_time"`
+	StartTime   time.Time     `json:"start_time,string"`
+	EndTime     time.Time     `json:"end_time,string"`
 	BeatmapID   string        `json:"beatmap_id"`
-	PlayMode    mode          `json:"play_mode"`
-	MatchType   int64         `json:"match_type"`
-	ScoringType scoringType   `json:"scoring_type"`
+	PlayMode    mode          `json:"play_mode,string"`
+	MatchType   int64         `json:"match_type,string"`
+	ScoringType scoringType   `json:"scoring_type,string"`
 	TeamType    string        `json:"team_type"`
-	Mods        Mods          `json:"mods"`
-	Scores      []*MatchScore `json:"scores"`
+	Mods        Mods          `json:"mods,string"`
+	Scores      []*MatchScore `json:"scores,string"`
 }
 
 // MatchScore contains the information about the score of an individual user in a multiplayer match
 type MatchScore struct {
-	Slot      string `json:"slot"`
-	Team      string `json:"team"`
+	Slot      int64  `json:"slot,string"`
+	Team      int64  `json:"team,string"`
 	UserID    string `json:"user_id"`
 	Score     string `json:"score"`
 	Maxcombo  string `json:"maxcombo"`
 	Rank      string `json:"rank"`
-	Count50   string `json:"count50"`
-	Count100  string `json:"count100"`
-	Count300  string `json:"count300"`
-	Countmiss string `json:"countmiss"`
-	Countgeki string `json:"countgeki"`
-	Countkatu string `json:"countkatu"`
+	Count50   int64  `json:"count50,string"`
+	Count100  int64  `json:"count100,string"`
+	Count300  int64  `json:"count300,string"`
+	Countmiss int64  `json:"countmiss,string"`
+	Countgeki int64  `json:"countgeki,string"`
+	Countkatu int64  `json:"countkatu,string"`
 	Perfect   string `json:"perfect"`
 	Pass      string `json:"pass"`
 }
